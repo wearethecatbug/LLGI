@@ -4,7 +4,7 @@
  * LLGI SingleFrameMemoryPoolWebGPU - Per-frame memory allocator for WebGPU
  */
 
-#include "../LLGI.SingleFrameMemoryPool.h"
+#include "../LLGI.Graphics.h"
 #include "LLGI.BaseWebGPU.h"
 
 #include <vector>
@@ -64,10 +64,15 @@ public:
     
     void NewFrame() override;
     Buffer* CreateConstantBuffer(int32_t size) override;
-    InternalBuffer* GetInternalBuffer() override { return nullptr; }
-    int32_t GetOffset() override { return uniformBufferOffset_; }
+
+protected:
+    Buffer* CreateBufferInternal(int32_t size) override;
+    Buffer* ReinitializeBuffer(Buffer* cb, int32_t size) override;
     
+public:
     // ========== WebGPU-Specific ==========
+    
+    int32_t GetOffset() const { return uniformBufferOffset_; }
     
     /**
      * Allocate from the uniform buffer ring

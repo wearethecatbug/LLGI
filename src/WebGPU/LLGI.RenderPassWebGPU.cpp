@@ -237,18 +237,19 @@ RenderPassPipelineStateWebGPU::~RenderPassPipelineStateWebGPU()
 
 bool RenderPassPipelineStateWebGPU::Initialize(const RenderPassPipelineStateKey& key)
 {
-    key_ = key;
+    Key = key;  // Use inherited public member
     
     // Convert LLGI formats to WebGPU formats
     colorFormats_.clear();
     
-    for (int32_t i = 0; i < key.RenderTargetCount; ++i)
+    for (size_t i = 0; i < key.RenderTargetFormats.size(); ++i)
     {
-        WGPUTextureFormat format = ConvertTextureFormat(key.RenderTargetFormats[i]);
+        WGPUTextureFormat format = ConvertTextureFormat(key.RenderTargetFormats.at(i));
         colorFormats_.push_back(format);
     }
     
-    if (key.HasDepth)
+    // Check if depth format is specified
+    if (key.DepthFormat != TextureFormatType::Unknown)
     {
         hasDepth_ = true;
         depthFormat_ = ConvertTextureFormat(key.DepthFormat);

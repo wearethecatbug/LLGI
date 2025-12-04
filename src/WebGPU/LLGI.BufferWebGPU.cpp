@@ -51,7 +51,10 @@ bool BufferWebGPU::Initialize(BufferUsageType usage, int32_t size)
         // Uniform buffers need 256-byte alignment in WebGPU
         actualSize_ = (actualSize_ + 255) & ~255;
         break;
-    case BufferUsageType::Compute:
+    case BufferUsageType::ComputeRead:
+        wgpuUsage |= WGPUBufferUsage_Storage;
+        break;
+    case BufferUsageType::ComputeWrite:
         wgpuUsage |= WGPUBufferUsage_Storage;
         break;
     case BufferUsageType::CopySrc:

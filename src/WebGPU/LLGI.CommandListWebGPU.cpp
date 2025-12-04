@@ -279,7 +279,7 @@ void CommandListWebGPU::SetComputeBuffer(Buffer* computeBuffer, int32_t stride,
 void CommandListWebGPU::CopyTexture(Texture* src, Texture* dst)
 {
     auto* srcTex = static_cast<TextureWebGPU*>(src);
-    auto* dstTex = static_cast<TextureWebGPU*>(dst);
+    (void)static_cast<TextureWebGPU*>(dst);  // Validated by overload
     
     Vec2I srcSize = srcTex->GetSizeAs2D();
     

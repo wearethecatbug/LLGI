@@ -7,6 +7,7 @@
  */
 
 #include "../LLGI.Texture.h"
+#include "../LLGI.Graphics.h"
 #include "LLGI.BaseWebGPU.h"
 
 namespace LLGI

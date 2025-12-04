@@ -4,7 +4,7 @@
  * LLGI RenderPassWebGPU - WebGPU Render Pass Implementation
  */
 
-#include "../LLGI.RenderPass.h"
+#include "../LLGI.Graphics.h"
 #include "LLGI.BaseWebGPU.h"
 
 #include <vector>
@@ -83,7 +83,6 @@ class RenderPassPipelineStateWebGPU : public RenderPassPipelineState
 {
 private:
     GraphicsWebGPU* graphics_ = nullptr;
-    RenderPassPipelineStateKey key_;
     
     std::vector<WGPUTextureFormat> colorFormats_;
     WGPUTextureFormat depthFormat_ = WGPUTextureFormat_Undefined;
@@ -99,7 +98,7 @@ public:
     WGPUTextureFormat GetDepthFormat() const { return depthFormat_; }
     bool HasDepthTexture() const { return hasDepth_; }
     
-    RenderPassPipelineStateKey GetKey() const override { return key_; }
+    const RenderPassPipelineStateKey& GetKey() const { return Key; }
 };
 
 } // namespace LLGI

@@ -192,7 +192,7 @@ Texture* GraphicsWebGPU::CreateTexture(const TextureInitializationParameter& par
 {
     TextureParameter param;
     param.Format = parameter.Format;
-    param.Size = parameter.Size;
+    param.Size = Vec3I{parameter.Size.X, parameter.Size.Y, 1};
     param.Dimension = 2;
     param.MipLevelCount = parameter.MipMapCount > 0 ? parameter.MipMapCount : 1;
     param.SampleCount = 1;
@@ -205,7 +205,7 @@ Texture* GraphicsWebGPU::CreateRenderTexture(const RenderTextureInitializationPa
 {
     TextureParameter param;
     param.Format = parameter.Format;
-    param.Size = parameter.Size;
+    param.Size = Vec3I{parameter.Size.X, parameter.Size.Y, 1};
     param.Dimension = 2;
     param.MipLevelCount = 1;
     param.SampleCount = parameter.SamplingCount;
@@ -218,7 +218,7 @@ Texture* GraphicsWebGPU::CreateDepthTexture(const DepthTextureInitializationPara
 {
     TextureParameter param;
     param.Format = TextureFormatType::D32;  // Or D24S8 based on parameter
-    param.Size = parameter.Size;
+    param.Size = Vec3I{parameter.Size.X, parameter.Size.Y, 1};
     param.Dimension = 2;
     param.MipLevelCount = 1;
     param.SampleCount = parameter.SamplingCount;

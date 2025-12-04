@@ -99,6 +99,10 @@ if(BUILD_WEBGPU)
     # Native Dawn
     if(DEFINED DAWN_INCLUDE_DIR)
       target_include_directories(LLGI PRIVATE ${DAWN_INCLUDE_DIR})
+    else()
+      # Use stub headers for compilation testing
+      message(STATUS "DAWN_INCLUDE_DIR not set, using stub headers for WebGPU")
+      target_include_directories(LLGI PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/WebGPU/stub_headers)
     endif()
     if(DEFINED DAWN_LIBRARY_DIR)
       target_link_directories(LLGI PRIVATE ${DAWN_LIBRARY_DIR})

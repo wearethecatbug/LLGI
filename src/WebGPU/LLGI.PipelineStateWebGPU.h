@@ -60,6 +60,8 @@ public:
     WGPUComputePipeline GetComputePipeline() const { return computePipeline_; }
     WGPUPipelineLayout GetLayout() const { return pipelineLayout_; }
     WGPUBindGroupLayout GetBindGroupLayout() const { return bindGroupLayout_; }
+    
+    TopologyType GetTopology() const { return Topology; }
 };
 
 } // namespace LLGI

@@ -71,6 +71,18 @@ Buffer* SingleFrameMemoryPoolWebGPU::CreateConstantBuffer(int32_t size)
     return buffer;
 }
 
+Buffer* SingleFrameMemoryPoolWebGPU::CreateBufferInternal(int32_t size)
+{
+    return CreateConstantBuffer(size);
+}
+
+Buffer* SingleFrameMemoryPoolWebGPU::ReinitializeBuffer(Buffer* cb, int32_t size)
+{
+    // WebGPU doesn't support resizing buffers, create a new one
+    SafeRelease(cb);
+    return CreateConstantBuffer(size);
+}
+
 MemoryAllocationWebGPU SingleFrameMemoryPoolWebGPU::Allocate(int32_t size)
 {
     MemoryAllocationWebGPU result = {};
@@ -79,7 +91,6 @@ MemoryAllocationWebGPU SingleFrameMemoryPoolWebGPU::Allocate(int32_t size)
     int32_t alignedSize = (size + UNIFORM_ALIGNMENT - 1) & ~(UNIFORM_ALIGNMENT - 1);
     
     // Check if we have space in current frame's portion
-    int32_t frameStart = frameOffsets_[currentFrame_];
     int32_t frameEnd = (currentFrame_ + 1 < swapCount_) 
                        ? frameOffsets_[currentFrame_ + 1] 
                        : uniformBufferSize_;
