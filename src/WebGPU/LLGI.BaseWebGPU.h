@@ -20,11 +20,22 @@
 // For Emscripten builds, include emscripten's webgpu.h
 #ifdef __EMSCRIPTEN__
 #include <webgpu/webgpu.h>
-#include <webgpu/webgpu_cpp.h>
+// Note: webgpu_cpp.h provides C++ wrappers but we only use C API
+// #include <webgpu/webgpu_cpp.h>
 #else
-// Dawn native
+// Dawn native or webgpu-native
 #include <webgpu/webgpu.h>
-#include <webgpu/webgpu_cpp.h>
+// Note: webgpu_cpp.h provides C++ wrappers but we only use C API
+// #include <webgpu/webgpu_cpp.h>
+#endif
+
+// Compatibility typedefs for different webgpu.h versions
+// Older versions use WGPUBufferUsageFlags, newer ones use WGPUBufferUsage
+#ifndef WGPUBufferUsageFlags
+typedef WGPUBufferUsage WGPUBufferUsageFlags;
+#endif
+#ifndef WGPUTextureUsageFlags
+typedef WGPUTextureUsage WGPUTextureUsageFlags;
 #endif
 
 namespace LLGI

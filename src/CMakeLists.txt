@@ -147,4 +147,6 @@ install(
   DESTINATION lib/cmake
   EXPORT_LINK_INTERFACE_LIBRARIES)
 
-clang_format(LLGI)
+if(COMMAND clang_format)
+  clang_format(LLGI)
+endif()
