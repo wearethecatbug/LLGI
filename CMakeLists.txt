@@ -13,6 +13,7 @@ endif()
 
 option(BUILD_VULKAN "build vulkan" OFF)
 option(BUILD_VULKAN_COMPILER "build vulkan compiler" OFF)
+option(BUILD_WEBGPU "build webgpu" OFF)
 option(BUILD_TEST "build test" OFF)
 option(BUILD_EXAMPLE "build examples" OFF)
 option(BUILD_TOOL "build tools" OFF)
@@ -240,6 +241,15 @@ if(BUILD_VULKAN)
 
   if(BUILD_VULKAN_COMPILER)
     add_compile_definitions(ENABLE_VULKAN_COMPILER)
+  endif()
+endif()
+
+if(BUILD_WEBGPU)
+  add_compile_definitions(ENABLE_WEBGPU)
+  if(EMSCRIPTEN)
+    add_compile_definitions(__EMSCRIPTEN__)
+  else()
+    add_compile_definitions(LLGI_WEBGPU_DAWN)
   endif()
 endif()
 
