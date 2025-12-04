@@ -48,7 +48,12 @@ WGPUTextureFormat ConvertTextureFormat(TextureFormatType format);
 /**
  * Convert WebGPU texture format to LLGI texture format
  */
-TextureFormatType ConvertTextureFormat(WGPUTextureFormat format);
+TextureFormatType ConvertTextureFormatToLLGI(WGPUTextureFormat format);
+
+/**
+ * Get bytes per pixel for a texture format
+ */
+int32_t GetTextureFormatBytesPerPixel(TextureFormatType format);
 
 /**
  * Convert LLGI blend factor to WebGPU blend factor

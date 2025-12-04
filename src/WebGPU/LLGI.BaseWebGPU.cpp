@@ -34,7 +34,7 @@ WGPUTextureFormat ConvertTextureFormat(TextureFormatType format)
     }
 }
 
-TextureFormatType ConvertTextureFormat(WGPUTextureFormat format)
+TextureFormatType ConvertTextureFormatToLLGI(WGPUTextureFormat format)
 {
     switch (format)
     {
@@ -62,6 +62,32 @@ TextureFormatType ConvertTextureFormat(WGPUTextureFormat format)
         return TextureFormatType::D32S8;
     default:
         return TextureFormatType::Unknown;
+    }
+}
+
+int32_t GetTextureFormatBytesPerPixel(TextureFormatType format)
+{
+    switch (format)
+    {
+    case TextureFormatType::R8_UNORM:
+        return 1;
+    case TextureFormatType::R16G16_FLOAT:
+        return 4;
+    case TextureFormatType::R8G8B8A8_UNORM:
+    case TextureFormatType::B8G8R8A8_UNORM:
+    case TextureFormatType::R8G8B8A8_UNORM_SRGB:
+    case TextureFormatType::B8G8R8A8_UNORM_SRGB:
+    case TextureFormatType::D32:
+        return 4;
+    case TextureFormatType::D24S8:
+        return 4;
+    case TextureFormatType::R16G16B16A16_FLOAT:
+    case TextureFormatType::D32S8:
+        return 8;
+    case TextureFormatType::R32G32B32A32_FLOAT:
+        return 16;
+    default:
+        return 4;
     }
 }
 
