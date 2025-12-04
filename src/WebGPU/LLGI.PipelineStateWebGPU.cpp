@@ -7,7 +7,7 @@
 #include "LLGI.PipelineStateWebGPU.h"
 #include "LLGI.GraphicsWebGPU.h"
 #include "LLGI.ShaderWebGPU.h"
-#include "LLGI.RenderPassPipelineStateWebGPU.h"
+#include "LLGI.RenderPassWebGPU.h"  // Contains RenderPassPipelineStateWebGPU
 
 #include <cassert>
 

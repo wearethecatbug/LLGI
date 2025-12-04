@@ -7,8 +7,7 @@
 #include "LLGI.GraphicsWebGPU.h"
 #include "LLGI.BufferWebGPU.h"
 #include "LLGI.CommandListWebGPU.h"
-#include "LLGI.RenderPassWebGPU.h"
-#include "LLGI.RenderPassPipelineStateWebGPU.h"
+#include "LLGI.RenderPassWebGPU.h"  // Also contains RenderPassPipelineStateWebGPU
 #include "LLGI.SingleFrameMemoryPoolWebGPU.h"
 #include "LLGI.ShaderWebGPU.h"
 #include "LLGI.PipelineStateWebGPU.h"
