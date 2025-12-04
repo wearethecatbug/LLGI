@@ -2,14 +2,17 @@
  * LLGI PipelineStateWebGPU Implementation
  * 
  * Uses per-stage shaders like Vulkan.
+ * Configuration uses inherited public members from PipelineState base class.
  */
 
 #include "LLGI.PipelineStateWebGPU.h"
 #include "LLGI.GraphicsWebGPU.h"
 #include "LLGI.ShaderWebGPU.h"
 #include "LLGI.RenderPassWebGPU.h"  // Contains RenderPassPipelineStateWebGPU
+#include "../LLGI.CommandList.h"    // For NumConstantBuffer
 
 #include <cassert>
+#include <vector>
 
 namespace LLGI
 {
@@ -50,8 +53,11 @@ PipelineStateWebGPU::~PipelineStateWebGPU()
     {
         SafeRelease(shader);
     }
-    
-    SafeRelease(renderPassPipelineState_);
+}
+
+bool PipelineStateWebGPU::Initialize()
+{
+    return true;
 }
 
 void PipelineStateWebGPU::SetShader(ShaderStageType stage, Shader* shader)
@@ -65,83 +71,6 @@ void PipelineStateWebGPU::SetShader(ShaderStageType stage, Shader* shader)
     SafeRelease(shaders_[index]);
     shaders_[index] = static_cast<ShaderWebGPU*>(shader);
     SafeAddRef(shaders_[index]);
-}
-
-void PipelineStateWebGPU::SetVertexLayout(const VertexLayoutElement* elements, int32_t elementCount)
-{
-    vertexLayoutElements_.clear();
-    vertexLayoutElements_.reserve(elementCount);
-    
-    for (int32_t i = 0; i < elementCount; ++i)
-    {
-        vertexLayoutElements_.push_back(elements[i]);
-    }
-}
-
-void PipelineStateWebGPU::SetTopologyType(TopologyType topologyType)
-{
-    topology_ = topologyType;
-}
-
-void PipelineStateWebGPU::SetCullingMode(CullingMode cullingMode)
-{
-    cullingMode_ = cullingMode;
-}
-
-void PipelineStateWebGPU::SetIsDepthWriteEnabled(bool isEnabled)
-{
-    isDepthWriteEnabled_ = isEnabled;
-}
-
-void PipelineStateWebGPU::SetDepthFuncType(DepthFuncType depthFuncType)
-{
-    depthFunc_ = depthFuncType;
-}
-
-void PipelineStateWebGPU::SetIsBlendEnabled(bool isEnabled)
-{
-    isBlendEnabled_ = isEnabled;
-}
-
-void PipelineStateWebGPU::SetBlendFunc(BlendFuncType src, BlendFuncType dst)
-{
-    SetBlendFuncRGB(src, dst);
-    SetBlendFuncAlpha(src, dst);
-}
-
-void PipelineStateWebGPU::SetBlendFuncRGB(BlendFuncType src, BlendFuncType dst)
-{
-    blendSrcFuncRGB_ = src;
-    blendDstFuncRGB_ = dst;
-}
-
-void PipelineStateWebGPU::SetBlendFuncAlpha(BlendFuncType src, BlendFuncType dst)
-{
-    blendSrcFuncAlpha_ = src;
-    blendDstFuncAlpha_ = dst;
-}
-
-void PipelineStateWebGPU::SetBlendEquation(BlendEquationType blendEquation)
-{
-    SetBlendEquationRGB(blendEquation);
-    SetBlendEquationAlpha(blendEquation);
-}
-
-void PipelineStateWebGPU::SetBlendEquationRGB(BlendEquationType blendEquation)
-{
-    blendEquationRGB_ = blendEquation;
-}
-
-void PipelineStateWebGPU::SetBlendEquationAlpha(BlendEquationType blendEquation)
-{
-    blendEquationAlpha_ = blendEquation;
-}
-
-void PipelineStateWebGPU::SetRenderPassPipelineState(RenderPassPipelineState* renderPassPipelineState)
-{
-    SafeRelease(renderPassPipelineState_);
-    renderPassPipelineState_ = static_cast<RenderPassPipelineStateWebGPU*>(renderPassPipelineState);
-    SafeAddRef(renderPassPipelineState_);
 }
 
 bool PipelineStateWebGPU::Compile()
@@ -257,19 +186,17 @@ bool PipelineStateWebGPU::CreateRenderPipeline()
     pipelineDesc.vertex.module = vertexShader->GetShaderModule();
     pipelineDesc.vertex.entryPoint = vertexShader->GetEntryPoint().c_str();
     
-    // Vertex buffer layout
+    // Vertex buffer layout - use base class VertexLayouts and VertexLayoutCount
     std::vector<WGPUVertexAttribute> attributes;
     uint64_t offset = 0;
     
-    for (size_t i = 0; i < vertexLayoutElements_.size(); ++i)
+    for (int i = 0; i < VertexLayoutCount; ++i)
     {
-        const auto& elem = vertexLayoutElements_[i];
-        
         WGPUVertexAttribute attr = {};
         attr.shaderLocation = static_cast<uint32_t>(i);
         attr.offset = offset;
         
-        switch (elem.Format)
+        switch (VertexLayouts[i])
         {
         case VertexLayoutFormat::R32G32B32A32_FLOAT:
             attr.format = WGPUVertexFormat_Float32x4;
@@ -295,6 +222,10 @@ bool PipelineStateWebGPU::CreateRenderPipeline()
             attr.format = WGPUVertexFormat_Uint8x4;
             offset += 4;
             break;
+        case VertexLayoutFormat::R16G16_UNORM:
+            attr.format = WGPUVertexFormat_Unorm16x2;
+            offset += 4;
+            break;
         default:
             attr.format = WGPUVertexFormat_Float32x4;
             offset += 16;
@@ -310,27 +241,41 @@ bool PipelineStateWebGPU::CreateRenderPipeline()
     vertexBufferLayout.attributeCount = attributes.size();
     vertexBufferLayout.attributes = attributes.data();
     
-    pipelineDesc.vertex.bufferCount = 1;
-    pipelineDesc.vertex.buffers = &vertexBufferLayout;
+    if (VertexLayoutCount > 0)
+    {
+        pipelineDesc.vertex.bufferCount = 1;
+        pipelineDesc.vertex.buffers = &vertexBufferLayout;
+    }
+    else
+    {
+        pipelineDesc.vertex.bufferCount = 0;
+        pipelineDesc.vertex.buffers = nullptr;
+    }
     
-    // Primitive state
+    // Primitive state - use base class Topology and Culling
     WGPUPrimitiveState primitiveState = {};
-    primitiveState.topology = ConvertTopology(topology_);
+    primitiveState.topology = ConvertTopology(Topology);
     primitiveState.stripIndexFormat = WGPUIndexFormat_Undefined;
     primitiveState.frontFace = WGPUFrontFace_CCW;
-    primitiveState.cullMode = ConvertCullMode(cullingMode_);
+    primitiveState.cullMode = ConvertCullMode(Culling);
     pipelineDesc.primitive = primitiveState;
     
-    // Depth stencil state
+    // Depth stencil state - use base class IsDepthTestEnabled, IsDepthWriteEnabled, DepthFunc
     WGPUDepthStencilState depthStencilState = {};
-    bool hasDepth = renderPassPipelineState_ != nullptr && 
-                    renderPassPipelineState_->HasDepthTexture();
+    RenderPassPipelineStateWebGPU* rpps = nullptr;
     
-    if (hasDepth)
+    if (renderPassPipelineState_ != nullptr)
+    {
+        rpps = static_cast<RenderPassPipelineStateWebGPU*>(renderPassPipelineState_.get());
+    }
+    
+    bool hasDepth = rpps != nullptr && rpps->HasDepthTexture();
+    
+    if (hasDepth || IsDepthTestEnabled)
     {
         depthStencilState.format = WGPUTextureFormat_Depth32Float;
-        depthStencilState.depthWriteEnabled = isDepthWriteEnabled_;
-        depthStencilState.depthCompare = ConvertCompareFunction(depthFunc_);
+        depthStencilState.depthWriteEnabled = IsDepthWriteEnabled;
+        depthStencilState.depthCompare = ConvertCompareFunction(DepthFunc);
         depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
         depthStencilState.stencilFront.failOp = WGPUStencilOperation_Keep;
         depthStencilState.stencilFront.depthFailOp = WGPUStencilOperation_Keep;
@@ -356,20 +301,20 @@ bool PipelineStateWebGPU::CreateRenderPipeline()
     fragmentState.module = pixelShader->GetShaderModule();
     fragmentState.entryPoint = pixelShader->GetEntryPoint().c_str();
     
-    // Color target state
+    // Color target state - use base class blend settings
     WGPUColorTargetState colorTarget = {};
     colorTarget.format = WGPUTextureFormat_BGRA8Unorm;  // Default, should come from render pass
     colorTarget.writeMask = WGPUColorWriteMask_All;
     
-    if (isBlendEnabled_)
+    WGPUBlendState blendState = {};
+    if (IsBlendEnabled)
     {
-        WGPUBlendState blendState = {};
-        blendState.color.srcFactor = ConvertBlendFactor(blendSrcFuncRGB_);
-        blendState.color.dstFactor = ConvertBlendFactor(blendDstFuncRGB_);
-        blendState.color.operation = ConvertBlendOperation(blendEquationRGB_);
-        blendState.alpha.srcFactor = ConvertBlendFactor(blendSrcFuncAlpha_);
-        blendState.alpha.dstFactor = ConvertBlendFactor(blendDstFuncAlpha_);
-        blendState.alpha.operation = ConvertBlendOperation(blendEquationAlpha_);
+        blendState.color.srcFactor = ConvertBlendFactor(BlendSrcFunc);
+        blendState.color.dstFactor = ConvertBlendFactor(BlendDstFunc);
+        blendState.color.operation = ConvertBlendOperation(BlendEquationRGB);
+        blendState.alpha.srcFactor = ConvertBlendFactor(BlendSrcFuncAlpha);
+        blendState.alpha.dstFactor = ConvertBlendFactor(BlendDstFuncAlpha);
+        blendState.alpha.operation = ConvertBlendOperation(BlendEquationAlpha);
         colorTarget.blend = &blendState;
     }
     
