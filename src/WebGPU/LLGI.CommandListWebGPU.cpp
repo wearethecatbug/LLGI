@@ -78,10 +78,25 @@ void CommandListWebGPU::Begin()
 
 bool CommandListWebGPU::BeginWithPlatform(void* platformContextPtr)
 {
-    // WebGPU doesn't support external command encoders in the same way
-    // as Metal, so we just do a regular begin
-    Begin();
-    return true;
+    if (platformContextPtr != nullptr)
+    {
+        // Use external command encoder provided by platform
+        encoder_ = static_cast<WGPUCommandEncoder>(platformContextPtr);
+        isExternalEncoder_ = true;
+    }
+    else
+    {
+        // Create our own encoder
+        WGPUCommandEncoderDescriptor encoderDesc = {};
+        encoderDesc.label = nullptr;
+        encoder_ = wgpuDeviceCreateCommandEncoder(graphics_->GetDevice(), &encoderDesc);
+        isExternalEncoder_ = false;
+    }
+    
+    isInBegin_ = true;
+    bindGroupDirty_ = true;
+    
+    return encoder_ != nullptr;
 }
 
 void CommandListWebGPU::End()
@@ -91,12 +106,17 @@ void CommandListWebGPU::End()
         return;
     }
     
-    // Finish encoding and create command buffer
-    commandBuffer_ = wgpuCommandEncoderFinish(encoder_, nullptr);
+    // Only finish encoder if we created it (not external)
+    if (!isExternalEncoder_)
+    {
+        // Finish encoding and create command buffer
+        commandBuffer_ = wgpuCommandEncoderFinish(encoder_, nullptr);
+        
+        wgpuCommandEncoderRelease(encoder_);
+    }
     
-    wgpuCommandEncoderRelease(encoder_);
     encoder_ = nullptr;
-    
+    isExternalEncoder_ = false;
     isInBegin_ = false;
     
     CommandList::End();
@@ -104,7 +124,17 @@ void CommandListWebGPU::End()
 
 void CommandListWebGPU::EndWithPlatform()
 {
-    End();
+    // Don't finish the encoder - it's owned by platform
+    if (isExternalEncoder_)
+    {
+        encoder_ = nullptr;
+        isExternalEncoder_ = false;
+        isInBegin_ = false;
+    }
+    else
+    {
+        End();
+    }
 }
 
 void CommandListWebGPU::SetScissor(int32_t x, int32_t y, int32_t width, int32_t height)
@@ -330,26 +360,48 @@ void CommandListWebGPU::EndRenderPass()
 {
     if (renderPassEncoder_ != nullptr)
     {
-        wgpuRenderPassEncoderEnd(renderPassEncoder_);
-        wgpuRenderPassEncoderRelease(renderPassEncoder_);
+        if (!isExternalRenderPass_)
+        {
+            wgpuRenderPassEncoderEnd(renderPassEncoder_);
+            wgpuRenderPassEncoderRelease(renderPassEncoder_);
+        }
         renderPassEncoder_ = nullptr;
     }
     
     currentRenderPass_ = nullptr;
     currentPipeline_ = nullptr;
     hasScissor_ = false;
+    isExternalRenderPass_ = false;
     
     CommandList::EndRenderPass();
 }
 
 bool CommandListWebGPU::BeginRenderPassWithPlatformPtr(void* platformPtr)
 {
-    // WebGPU doesn't support external render passes
+    if (platformPtr != nullptr)
+    {
+        // Use external render pass encoder provided by platform
+        renderPassEncoder_ = static_cast<WGPURenderPassEncoder>(platformPtr);
+        isExternalRenderPass_ = true;
+        isInRenderPass_ = true;
+        return true;
+    }
     return false;
 }
 
 bool CommandListWebGPU::EndRenderPassWithPlatformPtr()
 {
+    if (isExternalRenderPass_)
+    {
+        // Don't end or release - platform owns the encoder
+        renderPassEncoder_ = nullptr;
+        isExternalRenderPass_ = false;
+        isInRenderPass_ = false;
+        currentRenderPass_ = nullptr;
+        currentPipeline_ = nullptr;
+        hasScissor_ = false;
+        return true;
+    }
     return false;
 }
 

@@ -58,6 +58,10 @@ private:
     } scissor_;
     
     bool hasScissor_ = false;
+    
+    // External handles (when using platform integration)
+    bool isExternalEncoder_ = false;
+    bool isExternalRenderPass_ = false;
 
     // Helper methods
     void CreateBindGroup();
