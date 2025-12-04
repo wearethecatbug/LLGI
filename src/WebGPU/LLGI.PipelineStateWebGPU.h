@@ -4,11 +4,13 @@
  * LLGI PipelineStateWebGPU - WebGPU Pipeline State Implementation
  * 
  * Wraps WGPURenderPipeline and WGPUComputePipeline.
+ * Uses per-stage shaders like Vulkan (separate vertex/pixel/compute shaders).
  */
 
 #include "../LLGI.PipelineState.h"
 #include "LLGI.BaseWebGPU.h"
 
+#include <array>
 #include <vector>
 
 namespace LLGI
@@ -31,7 +33,9 @@ private:
     WGPUPipelineLayout pipelineLayout_ = nullptr;
     WGPUBindGroupLayout bindGroupLayout_ = nullptr;
     
-    ShaderWebGPU* shader_ = nullptr;
+    // Per-stage shaders (like Vulkan)
+    std::array<ShaderWebGPU*, static_cast<int>(ShaderStageType::Max)> shaders_;
+    
     RenderPassPipelineStateWebGPU* renderPassPipelineState_ = nullptr;
     
     // Pipeline configuration

@@ -1,5 +1,7 @@
 /**
  * LLGI PipelineStateWebGPU Implementation
+ * 
+ * Uses per-stage shaders like Vulkan.
  */
 
 #include "LLGI.PipelineStateWebGPU.h"
@@ -15,6 +17,7 @@ namespace LLGI
 PipelineStateWebGPU::PipelineStateWebGPU(GraphicsWebGPU* graphics)
     : graphics_(graphics)
 {
+    shaders_.fill(nullptr);
 }
 
 PipelineStateWebGPU::~PipelineStateWebGPU()
@@ -43,15 +46,25 @@ PipelineStateWebGPU::~PipelineStateWebGPU()
         bindGroupLayout_ = nullptr;
     }
     
-    SafeRelease(shader_);
+    for (auto& shader : shaders_)
+    {
+        SafeRelease(shader);
+    }
+    
     SafeRelease(renderPassPipelineState_);
 }
 
 void PipelineStateWebGPU::SetShader(ShaderStageType stage, Shader* shader)
 {
-    SafeRelease(shader_);
-    shader_ = static_cast<ShaderWebGPU*>(shader);
-    SafeAddRef(shader_);
+    int index = static_cast<int>(stage);
+    if (index < 0 || index >= static_cast<int>(ShaderStageType::Max))
+    {
+        return;
+    }
+    
+    SafeRelease(shaders_[index]);
+    shaders_[index] = static_cast<ShaderWebGPU*>(shader);
+    SafeAddRef(shaders_[index]);
 }
 
 void PipelineStateWebGPU::SetVertexLayout(const VertexLayoutElement* elements, int32_t elementCount)
@@ -133,7 +146,13 @@ void PipelineStateWebGPU::SetRenderPassPipelineState(RenderPassPipelineState* re
 
 bool PipelineStateWebGPU::Compile()
 {
-    if (shader_ == nullptr)
+    // Check if we have required shaders
+    bool hasVertexShader = shaders_[static_cast<int>(ShaderStageType::Vertex)] != nullptr;
+    bool hasPixelShader = shaders_[static_cast<int>(ShaderStageType::Pixel)] != nullptr;
+    bool hasComputeShader = shaders_[static_cast<int>(ShaderStageType::Compute)] != nullptr;
+    
+    // Need either VS+PS for graphics, or CS for compute
+    if (!hasComputeShader && (!hasVertexShader || !hasPixelShader))
     {
         return false;
     }
@@ -149,7 +168,7 @@ bool PipelineStateWebGPU::Compile()
     }
     
     // Check if this is a compute shader
-    if (shader_->HasStage(ShaderStageType::Compute))
+    if (hasComputeShader)
     {
         return CreateComputePipeline();
     }
@@ -222,13 +241,21 @@ bool PipelineStateWebGPU::CreatePipelineLayout()
 
 bool PipelineStateWebGPU::CreateRenderPipeline()
 {
+    auto vertexShader = shaders_[static_cast<int>(ShaderStageType::Vertex)];
+    auto pixelShader = shaders_[static_cast<int>(ShaderStageType::Pixel)];
+    
+    if (vertexShader == nullptr || pixelShader == nullptr)
+    {
+        return false;
+    }
+    
     WGPURenderPipelineDescriptor pipelineDesc = {};
     pipelineDesc.label = nullptr;
     pipelineDesc.layout = pipelineLayout_;
     
-    // Vertex stage
-    pipelineDesc.vertex.module = shader_->GetShaderModule(ShaderStageType::Vertex);
-    pipelineDesc.vertex.entryPoint = shader_->GetEntryPoint(ShaderStageType::Vertex).c_str();
+    // Vertex stage - use vertex shader
+    pipelineDesc.vertex.module = vertexShader->GetShaderModule();
+    pipelineDesc.vertex.entryPoint = vertexShader->GetEntryPoint().c_str();
     
     // Vertex buffer layout
     std::vector<WGPUVertexAttribute> attributes;
@@ -324,10 +351,10 @@ bool PipelineStateWebGPU::CreateRenderPipeline()
     multisampleState.alphaToCoverageEnabled = false;
     pipelineDesc.multisample = multisampleState;
     
-    // Fragment state
+    // Fragment state - use pixel shader
     WGPUFragmentState fragmentState = {};
-    fragmentState.module = shader_->GetShaderModule(ShaderStageType::Pixel);
-    fragmentState.entryPoint = shader_->GetEntryPoint(ShaderStageType::Pixel).c_str();
+    fragmentState.module = pixelShader->GetShaderModule();
+    fragmentState.entryPoint = pixelShader->GetEntryPoint().c_str();
     
     // Color target state
     WGPUColorTargetState colorTarget = {};
@@ -357,11 +384,18 @@ bool PipelineStateWebGPU::CreateRenderPipeline()
 
 bool PipelineStateWebGPU::CreateComputePipeline()
 {
+    auto computeShader = shaders_[static_cast<int>(ShaderStageType::Compute)];
+    
+    if (computeShader == nullptr)
+    {
+        return false;
+    }
+    
     WGPUComputePipelineDescriptor pipelineDesc = {};
     pipelineDesc.label = nullptr;
     pipelineDesc.layout = pipelineLayout_;
-    pipelineDesc.compute.module = shader_->GetShaderModule(ShaderStageType::Compute);
-    pipelineDesc.compute.entryPoint = shader_->GetEntryPoint(ShaderStageType::Compute).c_str();
+    pipelineDesc.compute.module = computeShader->GetShaderModule();
+    pipelineDesc.compute.entryPoint = computeShader->GetEntryPoint().c_str();
     
     computePipeline_ = wgpuDeviceCreateComputePipeline(graphics_->GetDevice(), &pipelineDesc);
     

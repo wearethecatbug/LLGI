@@ -1,5 +1,7 @@
 /**
  * LLGI ShaderWebGPU Implementation
+ * 
+ * Simplified to match Vulkan pattern - single shader module per Shader object.
  */
 
 #include "LLGI.ShaderWebGPU.h"
@@ -18,110 +20,57 @@ ShaderWebGPU::ShaderWebGPU(GraphicsWebGPU* graphics)
 
 ShaderWebGPU::~ShaderWebGPU()
 {
-    for (auto& stage : stages_)
+    if (shaderModule_ != nullptr)
     {
-        if (stage.module != nullptr)
-        {
-            wgpuShaderModuleRelease(stage.module);
-            stage.module = nullptr;
-        }
+        wgpuShaderModuleRelease(shaderModule_);
+        shaderModule_ = nullptr;
     }
-    stages_.clear();
 }
 
 bool ShaderWebGPU::Initialize(DataStructure* data, int32_t count)
 {
-    if (data == nullptr || count <= 0)
+    // Like Vulkan, we expect exactly 1 data element
+    if (count != 1)
+    {
+        return false;
+    }
+    
+    if (data[0].Data == nullptr || data[0].Size <= 0)
     {
         return false;
     }
     
     WGPUDevice device = graphics_->GetDevice();
     
-    for (int32_t i = 0; i < count; ++i)
+    // Store source for debugging
+    sourceBuffer_.resize(data[0].Size);
+    memcpy(sourceBuffer_.data(), data[0].Data, data[0].Size);
+    
+    // WGSL source is expected as null-terminated or sized string
+    // Create a null-terminated copy
+    std::string wgslSource(static_cast<const char*>(data[0].Data), data[0].Size);
+    
+    // Create shader module descriptor
+    WGPUShaderModuleWGSLDescriptor wgslDesc = {};
+    wgslDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
+    wgslDesc.chain.next = nullptr;
+    wgslDesc.code = wgslSource.c_str();
+    
+    WGPUShaderModuleDescriptor moduleDesc = {};
+    moduleDesc.label = nullptr;
+    moduleDesc.nextInChain = reinterpret_cast<WGPUChainedStruct*>(&wgslDesc);
+    
+    shaderModule_ = wgpuDeviceCreateShaderModule(device, &moduleDesc);
+    if (shaderModule_ == nullptr)
     {
-        const DataStructure& stageData = data[i];
-        
-        if (stageData.Data == nullptr || stageData.Size <= 0)
-        {
-            continue;
-        }
-        
-        // WGSL source is expected as null-terminated string
-        // Copy to ensure null termination
-        std::string wgslSource(static_cast<const char*>(stageData.Data), stageData.Size);
-        
-        // Create shader module descriptor
-        WGPUShaderModuleWGSLDescriptor wgslDesc = {};
-        wgslDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
-        wgslDesc.chain.next = nullptr;
-        wgslDesc.code = wgslSource.c_str();
-        
-        WGPUShaderModuleDescriptor moduleDesc = {};
-        moduleDesc.label = nullptr;
-        moduleDesc.nextInChain = reinterpret_cast<WGPUChainedStruct*>(&wgslDesc);
-        
-        WGPUShaderModule module = wgpuDeviceCreateShaderModule(device, &moduleDesc);
-        if (module == nullptr)
-        {
-            // Shader compilation failed
-            // In production, should capture compilation info
-            return false;
-        }
-        
-        ShaderStageDataWebGPU stageInfo;
-        stageInfo.stage = stageData.Stage;
-        stageInfo.module = module;
-        stageInfo.entryPoint = "main";  // Default entry point
-        
-        // Check for custom entry point in data
-        if (stageData.EntryPoint != nullptr && stageData.EntryPoint[0] != '\0')
-        {
-            stageInfo.entryPoint = stageData.EntryPoint;
-        }
-        
-        stages_.push_back(stageInfo);
+        // Shader compilation failed
+        return false;
     }
     
-    return !stages_.empty();
-}
-
-WGPUShaderModule ShaderWebGPU::GetShaderModule(ShaderStageType stage) const
-{
-    for (const auto& s : stages_)
-    {
-        if (s.stage == stage)
-        {
-            return s.module;
-        }
-    }
-    return nullptr;
-}
-
-const std::string& ShaderWebGPU::GetEntryPoint(ShaderStageType stage) const
-{
-    static const std::string empty;
+    // Default entry point is "main"
+    entryPoint_ = "main";
     
-    for (const auto& s : stages_)
-    {
-        if (s.stage == stage)
-        {
-            return s.entryPoint;
-        }
-    }
-    return empty;
-}
-
-bool ShaderWebGPU::HasStage(ShaderStageType stage) const
-{
-    for (const auto& s : stages_)
-    {
-        if (s.stage == stage)
-        {
-            return true;
-        }
-    }
-    return false;
+    return true;
 }
 
 } // namespace LLGI
