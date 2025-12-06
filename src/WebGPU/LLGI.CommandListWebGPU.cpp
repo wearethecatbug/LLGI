@@ -66,7 +66,7 @@ void CommandListWebGPU::Begin()
     
     // Create new command encoder
     WGPUCommandEncoderDescriptor encoderDesc = {};
-    encoderDesc.label = nullptr;
+    encoderDesc.label = LLGI_WGPUStringViewNull();
     
     encoder_ = wgpuDeviceCreateCommandEncoder(graphics_->GetDevice(), &encoderDesc);
     
@@ -88,7 +88,7 @@ bool CommandListWebGPU::BeginWithPlatform(void* platformContextPtr)
     {
         // Create our own encoder
         WGPUCommandEncoderDescriptor encoderDesc = {};
-        encoderDesc.label = nullptr;
+        encoderDesc.label = LLGI_WGPUStringViewNull();
         encoder_ = wgpuDeviceCreateCommandEncoder(graphics_->GetDevice(), &encoderDesc);
         isExternalEncoder_ = false;
     }
@@ -413,7 +413,7 @@ void CommandListWebGPU::BeginComputePass()
     }
     
     WGPUComputePassDescriptor desc = {};
-    desc.label = nullptr;
+    desc.label = LLGI_WGPUStringViewNull();
     
     computePassEncoder_ = wgpuCommandEncoderBeginComputePass(encoder_, &desc);
 }

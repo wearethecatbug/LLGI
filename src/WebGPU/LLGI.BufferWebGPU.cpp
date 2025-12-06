@@ -36,41 +36,66 @@ bool BufferWebGPU::Initialize(BufferUsageType usage, int32_t size)
     actualSize_ = (size + 3) & ~3;
     
     // Determine WebGPU usage flags
+    // Use bitwise checks to handle combined usage flags (e.g., Index | MapWrite)
     WGPUBufferUsageFlags wgpuUsage = WGPUBufferUsage_CopyDst;  // Always allow CPU uploads
     
-    switch (usage)
+    auto usageInt = static_cast<uint32_t>(usage);
+    
+    // Track if this is a GPU-side buffer (Vertex, Index, Uniform, Storage)
+    bool isGpuBuffer = false;
+    
+    if (usageInt & static_cast<uint32_t>(BufferUsageType::Vertex))
     {
-    case BufferUsageType::Vertex:
         wgpuUsage |= WGPUBufferUsage_Vertex;
-        break;
-    case BufferUsageType::Index:
+        isGpuBuffer = true;
+    }
+    if (usageInt & static_cast<uint32_t>(BufferUsageType::Index))
+    {
         wgpuUsage |= WGPUBufferUsage_Index;
-        break;
-    case BufferUsageType::Constant:
+        isGpuBuffer = true;
+    }
+    if (usageInt & static_cast<uint32_t>(BufferUsageType::Constant))
+    {
         wgpuUsage |= WGPUBufferUsage_Uniform;
         // Uniform buffers need 256-byte alignment in WebGPU
         actualSize_ = (actualSize_ + 255) & ~255;
-        break;
-    case BufferUsageType::ComputeRead:
+        isGpuBuffer = true;
+    }
+    if (usageInt & static_cast<uint32_t>(BufferUsageType::ComputeRead))
+    {
         wgpuUsage |= WGPUBufferUsage_Storage;
-        break;
-    case BufferUsageType::ComputeWrite:
+        isGpuBuffer = true;
+    }
+    if (usageInt & static_cast<uint32_t>(BufferUsageType::ComputeWrite))
+    {
         wgpuUsage |= WGPUBufferUsage_Storage;
-        break;
-    case BufferUsageType::CopySrc:
+        isGpuBuffer = true;
+    }
+    if (usageInt & static_cast<uint32_t>(BufferUsageType::CopySrc))
+    {
         wgpuUsage |= WGPUBufferUsage_CopySrc;
-        break;
-    case BufferUsageType::CopyDst:
+    }
+    if (usageInt & static_cast<uint32_t>(BufferUsageType::CopyDst))
+    {
         wgpuUsage |= WGPUBufferUsage_CopyDst;
-        break;
-    case BufferUsageType::MapWrite:
-        wgpuUsage |= WGPUBufferUsage_MapWrite;
-        break;
-    case BufferUsageType::MapRead:
+    }
+    
+    // WebGPU restriction: MapWrite can only be combined with CopySrc
+    // For GPU buffers (Vertex/Index/Uniform/Storage), skip MapWrite - use CopyDst instead
+    if (usageInt & static_cast<uint32_t>(BufferUsageType::MapWrite))
+    {
+        if (!isGpuBuffer)
+        {
+            wgpuUsage |= WGPUBufferUsage_MapWrite;
+            // MapWrite implies CopySrc, not CopyDst
+            wgpuUsage &= ~WGPUBufferUsage_CopyDst;
+            wgpuUsage |= WGPUBufferUsage_CopySrc;
+        }
+        // else: ignore MapWrite for GPU buffers, CopyDst is already set
+    }
+    if (usageInt & static_cast<uint32_t>(BufferUsageType::MapRead))
+    {
         wgpuUsage |= WGPUBufferUsage_MapRead;
-        break;
-    default:
-        break;
     }
     
     buffer_ = graphics_->CreateWGPUBuffer(wgpuUsage, actualSize_, false);

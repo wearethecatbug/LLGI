@@ -38,6 +38,52 @@ typedef WGPUBufferUsage WGPUBufferUsageFlags;
 typedef WGPUTextureUsage WGPUTextureUsageFlags;
 #endif
 
+// =============================================================================
+// WebGPU API 2024+ Compatibility Layer
+// =============================================================================
+// The WebGPU API has evolved - newer versions (Dawn 2024+, wgpu-native) use:
+// - WGPUStringView instead of const char* for labels/code
+// - WGPUShaderSourceWGSL instead of WGPUShaderModuleWGSLDescriptor
+// - WGPUTexelCopyTextureInfo instead of WGPUImageCopyTexture
+// - WGPUTexelCopyBufferLayout instead of WGPUTextureDataLayout
+
+#include <cstring>
+
+// Helper to create WGPUStringView from C string
+inline WGPUStringView LLGI_WGPUStringView(const char* str) {
+    WGPUStringView sv;
+    sv.data = str;
+    sv.length = str ? strlen(str) : WGPU_STRLEN;
+    return sv;
+}
+
+// Null string view for optional labels
+inline WGPUStringView LLGI_WGPUStringViewNull() {
+    WGPUStringView sv;
+    sv.data = nullptr;
+    sv.length = WGPU_STRLEN;
+    return sv;
+}
+
+// Compatibility typedefs for texture copy structures (if needed)
+#ifndef WGPUImageCopyTexture
+typedef WGPUTexelCopyTextureInfo WGPUImageCopyTexture;
+#endif
+#ifndef WGPUTextureDataLayout
+typedef WGPUTexelCopyBufferLayout WGPUTextureDataLayout;
+#endif
+
+// Shader source compatibility
+#ifndef WGPUShaderModuleWGSLDescriptor
+typedef WGPUShaderSourceWGSL WGPUShaderModuleWGSLDescriptor;
+#define WGPUSType_ShaderModuleWGSLDescriptor WGPUSType_ShaderSourceWGSL
+#endif
+
+// Helper to convert bool to WGPUOptionalBool (new API)
+inline WGPUOptionalBool LLGI_WGPUOptionalBool(bool value) {
+    return value ? WGPUOptionalBool_True : WGPUOptionalBool_False;
+}
+
 namespace LLGI
 {
 

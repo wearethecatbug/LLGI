@@ -295,7 +295,7 @@ WGPUBuffer GraphicsWebGPU::CreateWGPUBuffer(WGPUBufferUsageFlags usage,
                                              bool mappedAtCreation)
 {
     WGPUBufferDescriptor descriptor = {};
-    descriptor.label = nullptr;
+    descriptor.label = LLGI_WGPUStringViewNull();
     descriptor.size = size;
     descriptor.usage = usage;
     descriptor.mappedAtCreation = mappedAtCreation;
@@ -311,7 +311,7 @@ WGPUTexture GraphicsWebGPU::CreateWGPUTexture(const WGPUTextureDescriptor& descr
 WGPUSampler GraphicsWebGPU::CreateSampler(WGPUAddressMode addressMode, WGPUFilterMode filterMode)
 {
     WGPUSamplerDescriptor descriptor = {};
-    descriptor.label = nullptr;
+    descriptor.label = LLGI_WGPUStringViewNull();
     descriptor.addressModeU = addressMode;
     descriptor.addressModeV = addressMode;
     descriptor.addressModeW = addressMode;

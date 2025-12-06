@@ -50,14 +50,14 @@ bool ShaderWebGPU::Initialize(DataStructure* data, int32_t count)
     // Create a null-terminated copy
     std::string wgslSource(static_cast<const char*>(data[0].Data), data[0].Size);
     
-    // Create shader module descriptor
-    WGPUShaderModuleWGSLDescriptor wgslDesc = {};
-    wgslDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
+    // Create shader module descriptor (using new WebGPU API with WGPUStringView)
+    WGPUShaderSourceWGSL wgslDesc = {};
+    wgslDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
     wgslDesc.chain.next = nullptr;
-    wgslDesc.code = wgslSource.c_str();
+    wgslDesc.code = LLGI_WGPUStringView(wgslSource.c_str());
     
     WGPUShaderModuleDescriptor moduleDesc = {};
-    moduleDesc.label = nullptr;
+    moduleDesc.label = LLGI_WGPUStringViewNull();
     moduleDesc.nextInChain = reinterpret_cast<WGPUChainedStruct*>(&wgslDesc);
     
     shaderModule_ = wgpuDeviceCreateShaderModule(device, &moduleDesc);

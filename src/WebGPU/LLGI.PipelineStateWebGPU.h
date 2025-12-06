@@ -34,7 +34,8 @@ private:
     WGPURenderPipeline renderPipeline_ = nullptr;
     WGPUComputePipeline computePipeline_ = nullptr;
     WGPUPipelineLayout pipelineLayout_ = nullptr;
-    WGPUBindGroupLayout bindGroupLayout_ = nullptr;
+    WGPUBindGroupLayout bindGroupLayout_ = nullptr;      // Group 0: uniforms
+    WGPUBindGroupLayout bindGroupLayout1_ = nullptr;     // Group 1: textures/samplers
     
     // Per-stage shaders (like Vulkan)
     std::array<ShaderWebGPU*, static_cast<int>(ShaderStageType::Max)> shaders_;

@@ -76,7 +76,7 @@ bool TextureWebGPU::Initialize(const TextureParameter& parameter)
     
     // Create texture descriptor
     WGPUTextureDescriptor descriptor = {};
-    descriptor.label = nullptr;
+    descriptor.label = LLGI_WGPUStringViewNull();
     descriptor.size.width = static_cast<uint32_t>(textureSize_.X);
     descriptor.size.height = static_cast<uint32_t>(textureSize_.Y);
     descriptor.size.depthOrArrayLayers = static_cast<uint32_t>(textureSize_.Z);
@@ -96,7 +96,7 @@ bool TextureWebGPU::Initialize(const TextureParameter& parameter)
     
     // Create default view
     WGPUTextureViewDescriptor viewDesc = {};
-    viewDesc.label = nullptr;
+    viewDesc.label = LLGI_WGPUStringViewNull();
     viewDesc.format = wgpuFormat_;
     viewDesc.dimension = (parameter.Dimension == 3) 
                          ? WGPUTextureViewDimension_3D 
@@ -208,7 +208,7 @@ TextureFormatType TextureWebGPU::GetFormat() const
 WGPUTextureView TextureWebGPU::CreateView(int32_t mipLevel, int32_t arrayLayer) const
 {
     WGPUTextureViewDescriptor viewDesc = {};
-    viewDesc.label = nullptr;
+    viewDesc.label = LLGI_WGPUStringViewNull();
     viewDesc.format = wgpuFormat_;
     viewDesc.dimension = WGPUTextureViewDimension_2D;
     viewDesc.baseMipLevel = static_cast<uint32_t>(mipLevel);
@@ -239,13 +239,13 @@ void TextureWebGPU::UploadData(const void* data, int32_t size, int32_t mipLevel)
     
     WGPUQueue queue = graphics_->GetQueue();
     
-    WGPUImageCopyTexture destination = {};
+    WGPUTexelCopyTextureInfo destination = {};
     destination.texture = texture_;
     destination.mipLevel = static_cast<uint32_t>(mipLevel);
     destination.origin = {0, 0, 0};
     destination.aspect = WGPUTextureAspect_All;
     
-    WGPUTextureDataLayout dataLayout = {};
+    WGPUTexelCopyBufferLayout dataLayout = {};
     dataLayout.offset = 0;
     dataLayout.bytesPerRow = static_cast<uint32_t>(alignedBytesPerRow);
     dataLayout.rowsPerImage = static_cast<uint32_t>(mipHeight);

@@ -49,6 +49,12 @@ PipelineStateWebGPU::~PipelineStateWebGPU()
         bindGroupLayout_ = nullptr;
     }
     
+    if (bindGroupLayout1_ != nullptr)
+    {
+        wgpuBindGroupLayoutRelease(bindGroupLayout1_);
+        bindGroupLayout1_ = nullptr;
+    }
+    
     for (auto& shader : shaders_)
     {
         SafeRelease(shader);
@@ -109,10 +115,10 @@ bool PipelineStateWebGPU::Compile()
 
 bool PipelineStateWebGPU::CreateBindGroupLayout()
 {
-    // Create a default bind group layout
-    // In production, this should be derived from shader reflection
+    // Create bind group layout for group 0 (uniform buffers)
+    // Effekseer shaders use @group(0) for uniforms
     
-    std::vector<WGPUBindGroupLayoutEntry> entries;
+    std::vector<WGPUBindGroupLayoutEntry> group0Entries;
     
     // Add entries for uniform buffers (binding 0-3)
     for (uint32_t i = 0; i < NumConstantBuffer; ++i)
@@ -123,45 +129,65 @@ bool PipelineStateWebGPU::CreateBindGroupLayout()
         entry.buffer.type = WGPUBufferBindingType_Uniform;
         entry.buffer.hasDynamicOffset = false;
         entry.buffer.minBindingSize = 0;
-        entries.push_back(entry);
+        group0Entries.push_back(entry);
     }
     
-    // Add entries for textures (binding 4+)
-    for (uint32_t i = 0; i < 4; ++i)  // Support up to 4 textures
+    WGPUBindGroupLayoutDescriptor group0Desc = {};
+    group0Desc.label = LLGI_WGPUStringViewNull();
+    group0Desc.entryCount = group0Entries.size();
+    group0Desc.entries = group0Entries.data();
+    
+    bindGroupLayout_ = wgpuDeviceCreateBindGroupLayout(graphics_->GetDevice(), &group0Desc);
+    if (bindGroupLayout_ == nullptr)
+    {
+        return false;
+    }
+    
+    // Create bind group layout for group 1 (textures and samplers)
+    // Effekseer shaders use @group(1) for textures/samplers (up to 9 bindings)
+    
+    std::vector<WGPUBindGroupLayoutEntry> group1Entries;
+    
+    // Effekseer uses alternating texture/sampler bindings:
+    // binding 0: texture, binding 1: sampler, binding 2: texture, etc.
+    for (uint32_t i = 0; i < 5; ++i)  // Support up to 5 texture/sampler pairs
     {
         // Texture
         WGPUBindGroupLayoutEntry texEntry = {};
-        texEntry.binding = NumConstantBuffer + i * 2;
+        texEntry.binding = i * 2;
         texEntry.visibility = WGPUShaderStage_Fragment;
         texEntry.texture.sampleType = WGPUTextureSampleType_Float;
         texEntry.texture.viewDimension = WGPUTextureViewDimension_2D;
         texEntry.texture.multisampled = false;
-        entries.push_back(texEntry);
+        group1Entries.push_back(texEntry);
         
         // Sampler
         WGPUBindGroupLayoutEntry samplerEntry = {};
-        samplerEntry.binding = NumConstantBuffer + i * 2 + 1;
+        samplerEntry.binding = i * 2 + 1;
         samplerEntry.visibility = WGPUShaderStage_Fragment;
         samplerEntry.sampler.type = WGPUSamplerBindingType_Filtering;
-        entries.push_back(samplerEntry);
+        group1Entries.push_back(samplerEntry);
     }
     
-    WGPUBindGroupLayoutDescriptor layoutDesc = {};
-    layoutDesc.label = nullptr;
-    layoutDesc.entryCount = entries.size();
-    layoutDesc.entries = entries.data();
+    WGPUBindGroupLayoutDescriptor group1Desc = {};
+    group1Desc.label = LLGI_WGPUStringViewNull();
+    group1Desc.entryCount = group1Entries.size();
+    group1Desc.entries = group1Entries.data();
     
-    bindGroupLayout_ = wgpuDeviceCreateBindGroupLayout(graphics_->GetDevice(), &layoutDesc);
+    bindGroupLayout1_ = wgpuDeviceCreateBindGroupLayout(graphics_->GetDevice(), &group1Desc);
     
-    return bindGroupLayout_ != nullptr;
+    return bindGroupLayout1_ != nullptr;
 }
 
 bool PipelineStateWebGPU::CreatePipelineLayout()
 {
+    // Pipeline layout with two bind groups: group 0 (uniforms) and group 1 (textures)
+    WGPUBindGroupLayout layouts[] = { bindGroupLayout_, bindGroupLayout1_ };
+    
     WGPUPipelineLayoutDescriptor layoutDesc = {};
-    layoutDesc.label = nullptr;
-    layoutDesc.bindGroupLayoutCount = 1;
-    layoutDesc.bindGroupLayouts = &bindGroupLayout_;
+    layoutDesc.label = LLGI_WGPUStringViewNull();
+    layoutDesc.bindGroupLayoutCount = 2;
+    layoutDesc.bindGroupLayouts = layouts;
     
     pipelineLayout_ = wgpuDeviceCreatePipelineLayout(graphics_->GetDevice(), &layoutDesc);
     
@@ -179,12 +205,12 @@ bool PipelineStateWebGPU::CreateRenderPipeline()
     }
     
     WGPURenderPipelineDescriptor pipelineDesc = {};
-    pipelineDesc.label = nullptr;
+    pipelineDesc.label = LLGI_WGPUStringViewNull();
     pipelineDesc.layout = pipelineLayout_;
     
     // Vertex stage - use vertex shader
     pipelineDesc.vertex.module = vertexShader->GetShaderModule();
-    pipelineDesc.vertex.entryPoint = vertexShader->GetEntryPoint().c_str();
+    pipelineDesc.vertex.entryPoint = LLGI_WGPUStringView(vertexShader->GetEntryPoint().c_str());
     
     // Vertex buffer layout - use base class VertexLayouts and VertexLayoutCount
     std::vector<WGPUVertexAttribute> attributes;
@@ -274,7 +300,7 @@ bool PipelineStateWebGPU::CreateRenderPipeline()
     if (hasDepth || IsDepthTestEnabled)
     {
         depthStencilState.format = WGPUTextureFormat_Depth32Float;
-        depthStencilState.depthWriteEnabled = IsDepthWriteEnabled;
+        depthStencilState.depthWriteEnabled = LLGI_WGPUOptionalBool(IsDepthWriteEnabled);
         depthStencilState.depthCompare = ConvertCompareFunction(DepthFunc);
         depthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
         depthStencilState.stencilFront.failOp = WGPUStencilOperation_Keep;
@@ -299,7 +325,7 @@ bool PipelineStateWebGPU::CreateRenderPipeline()
     // Fragment state - use pixel shader
     WGPUFragmentState fragmentState = {};
     fragmentState.module = pixelShader->GetShaderModule();
-    fragmentState.entryPoint = pixelShader->GetEntryPoint().c_str();
+    fragmentState.entryPoint = LLGI_WGPUStringView(pixelShader->GetEntryPoint().c_str());
     
     // Color target state - use base class blend settings
     WGPUColorTargetState colorTarget = {};
@@ -337,10 +363,10 @@ bool PipelineStateWebGPU::CreateComputePipeline()
     }
     
     WGPUComputePipelineDescriptor pipelineDesc = {};
-    pipelineDesc.label = nullptr;
+    pipelineDesc.label = LLGI_WGPUStringViewNull();
     pipelineDesc.layout = pipelineLayout_;
     pipelineDesc.compute.module = computeShader->GetShaderModule();
-    pipelineDesc.compute.entryPoint = computeShader->GetEntryPoint().c_str();
+    pipelineDesc.compute.entryPoint = LLGI_WGPUStringView(computeShader->GetEntryPoint().c_str());
     
     computePipeline_ = wgpuDeviceCreateComputePipeline(graphics_->GetDevice(), &pipelineDesc);
     

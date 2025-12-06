@@ -217,7 +217,7 @@ void RenderPassWebGPU::BuildDescriptor()
     }
     
     descriptor_ = {};
-    descriptor_.label = nullptr;
+    descriptor_.label = LLGI_WGPUStringViewNull();
     descriptor_.colorAttachmentCount = colorAttachments_.size();
     descriptor_.colorAttachments = colorAttachments_.data();
     descriptor_.depthStencilAttachment = hasDepth_ ? &depthAttachment_ : nullptr;
